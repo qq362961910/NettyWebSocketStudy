@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Room</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font: 13px Helvetica, Arial;
+        }
+
+        #div_op {
+            border: 2px solid black;
+            background: #bbbbbb;
+            padding: 3px;
+            position: fixed;
+            bottom: 46px;
+            width: 100%;
+            height: 45px;
+        }
+
+        form {
+            background: #000;
+            padding: 3px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        form input {
+            height: 40px;
+            border: 0;
+            padding: 10px;
+            width: 90%;
+            margin-right: .5%;
+        }
+
+        form button {
+            width: 9%;
+            background: rgb(130, 224, 255);
+            border: none;
+            padding: 10px;
+        }
+
+        #messages {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #messages li {
+            padding: 5px 10px;
+        }
+
+        #messages li:nth-child(odd) {
+            background: #eee;
+        }
+    </style>
+</head>
+
+<body>
+<ul id="messages">
+</ul>
+<div id="div_op">
+    Type:<select id="target">
+    <option value="resource" selected>资源消息</option>
+    <option value="user_message">用户消息</option>
+    <option value="group_message">群组消息</option>
+</select> &nbsp;&nbsp;&nbsp;
+    <div id="resoure_option" style="display: inline">
+    Resource: <input id="resource_input_id" type="text" name=""/> &nbsp;&nbsp;&nbsp;
+    </div>
+    <div id="to_option" style="display: none">
+        To:<input id="target_value" type="text" >
+    </div>
+    Subscribe:<input id="subscribe_value" type="text"/> <button id="subscribe_btn" type="button">订阅</button>&nbsp; <button id="unsubscribe_btn" type="button">取消订阅</button>
+</div>
+<form action="" id="messageForm">
+    <input id="m" autocomplete="off"/>
+    <button type="button" id="sendMessageBtn">Send</button>
+</form>
+</body>
+
+<script type="text/javascript">
+    var group_message = "group_message";
+    var user_message = "user_message";
+    var target_username = "target_username";
+    var subscribe = "subscribe";
+    function Message() {
+        /**
+         * 资源名称
+         * */
+        var resourceName;
+        /**
+         * 动作
+         * */
+        var action;
+        /**
+         * 扩展
+         * */
+        var extensions;
+        /**
+         * body
+         * */
+        var body;
+
+        this.setResourceName = function (resourceName) {
+            this.resourceName = resourceName;
+        }
+        this.setAction = function (action) {
+            this.action = action;
+        }
+        this.setBody = function (body) {
+            this.body = body;
+        }
+        this.addExtensionValue = function (extensionName, extensionValue) {
+            if (typeof this.extensions == 'undefined') {
+                this.extensions = {};
+            }
+            this.extensions[extensionName] = extensionValue;
+        }
+    }
+</script>
+<script type="text/javascript">
+    //消息类型
+    var target = document.getElementById("target");
+    document.addEventListener("change", function(){
+        var resoure_option = document.getElementById("resoure_option");
+        var to_option = document.getElementById("to_option");
+        if (target.value == "resource") {
+            resoure_option.style.display = "inline";
+            to_option.style.display = "none";
+        }
+        else {
+            resoure_option.style.display = "none";
+            to_option.style.display = "inline";
+        }
+    }, false);
+    //添加订阅
+    var subscribe_btn = document.getElementById("subscribe_btn");
+    subscribe_btn.addEventListener('click', function() {
+        var topic = document.getElementById("subscribe_value").value;
+        var message = new Message();
+        message.setResourceName(subscribe);
+        message.setAction("add");
+        message.setBody(topic);
+        websocket.send(JSON.stringify(message));
+    }, false);
+    //取消订阅
+    var unsubscribe_btn = document.getElementById("unsubscribe_btn");
+    unsubscribe_btn.addEventListener('click', function() {
+        var topic = document.getElementById("subscribe_value").value;
+        var message = new Message();
+        message.setResourceName(subscribe);
+        message.setAction("remove");
+        message.setBody(topic);
+        websocket.send(JSON.stringify(message));
+    }, false);
+</script>
+<script type="text/javascript">
+    var wsUri = "ws://192.168.14.62:8888/";
+    var websocket = new WebSocket(wsUri);
+    function init() {
+        initWebSocket();
+    }
+    function initWebSocket() {
+        websocket.onopen = function (evt) {
+            console.log("connection ok");
+        };
+        websocket.onclose = function (evt) {
+            console.log("connection closed");
+        };
+        websocket.onmessage = function (evt) {
+            writeToScreen(evt.data);
+        };
+        websocket.onerror = function (evt) {
+            console.log("error");
+        };
+    }
+    function writeToScreen(msg) {
+        var message = JSON.parse(msg);
+        var li = document.createElement("li");
+        li.innerText = "resource: " + message.resourceName + ", action: " + message.action + ", body: " + message.body;
+        document.getElementById("messages").appendChild(li);
+    }
+    document.getElementById("messageForm").onsubmit = function () {
+        var type = document.getElementById("target").value;
+        var resource;
+        if (type == "resource") {
+            resource = document.getElementById("resource_input_id").value;
+        }
+        else {
+            resource =  type;
+        }
+        var msg = document.getElementById("m").value;
+        var message = new Message();
+        if (type == user_message) {
+            var targetvlue = document.getElementById("target_value").value;
+            if (targetvlue == "") {
+                alert("未填写消息接受者");
+                return;
+            }
+            message.addExtensionValue("target_username", targetvlue);
+        }
+        else if (type == group_message) {
+            var targetvlue = document.getElementById("target_value").value;
+            message.addExtensionValue("group_id", targetvlue);
+        }
+        message.setResourceName(resource);
+        message.setBody(msg);
+        websocket.send(JSON.stringify(message));
+        document.getElementById("m").value = '';
+        return false;
+    }
+    window.addEventListener("load", init, false);
+</script>
+</html>
