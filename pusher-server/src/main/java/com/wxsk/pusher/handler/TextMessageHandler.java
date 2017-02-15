@@ -60,7 +60,8 @@ public class TextMessageHandler extends SimpleChannelInboundHandler<TextWebSocke
             Map<String,Object> extensions = message.getExtensions();
             if (extensions != null) {
                 String username = (String)extensions.get(ExtensionType.TARGET_USERNAME.getExtensionName());
-                ChannelUtil.sendUserChannelTextMessage(username, msg.duplicate().retain());
+                extensions.put(ExtensionType.SOURCE_USERNAME.getExtensionName(), this.username);
+                ChannelUtil.sendUserChannelTextMessage(username, new TextWebSocketFrame(message.toJsonString()));
             }
         }
         //群组消息
@@ -68,12 +69,13 @@ public class TextMessageHandler extends SimpleChannelInboundHandler<TextWebSocke
             Map<String,Object> extensions = message.getExtensions();
             Object groupId;
             if (extensions != null) {
+                extensions.put(ExtensionType.SOURCE_USERNAME.getExtensionName(), this.username);
                 groupId = extensions.get(ExtensionType.GROUP_ID.getExtensionName());
             }
             else {
                 groupId = null;
             }
-            ChannelUtil.sendChannelGroupTextMessage(groupId, msg.duplicate().retain());
+            ChannelUtil.sendChannelGroupTextMessage(groupId, new TextWebSocketFrame(message.toJsonString()));
         }
         //资源消息
         else {

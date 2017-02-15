@@ -85,12 +85,27 @@
     <button type="button" id="sendMessageBtn">Send</button>
 </form>
 </body>
-
+<script type="text/javascript">
+    function registerEventById(id, event, handler) {
+        var vlc = document.getElementById(id);
+        if (vlc) {
+            if (vlc.attachEvent) {
+                // Microsoft
+                vlc.attachEvent(event, handler);
+            } else if (vlc.addEventListener) {
+                // Mozilla: DOM level 2
+                vlc.addEventListener(event, handler, false);
+            }
+        }
+    }
+</script>
 <script type="text/javascript">
     var group_message = "group_message";
     var user_message = "user_message";
     var target_username = "target_username";
     var subscribe = "subscribe";
+    var add_action = "add";
+    var delelete_action = "remove";
     function Message() {
         /**
          * 资源名称
@@ -147,7 +162,7 @@
         var topic = document.getElementById("subscribe_value").value;
         var message = new Message();
         message.setResourceName(subscribe);
-        message.setAction("add");
+        message.setAction(add_action);
         message.setBody(topic);
         websocket.send(JSON.stringify(message));
     }, false);
@@ -157,7 +172,7 @@
         var topic = document.getElementById("subscribe_value").value;
         var message = new Message();
         message.setResourceName(subscribe);
-        message.setAction("remove");
+        message.setAction(delelete_action);
         message.setBody(topic);
         websocket.send(JSON.stringify(message));
     }, false);
@@ -185,10 +200,11 @@
     function writeToScreen(msg) {
         var message = JSON.parse(msg);
         var li = document.createElement("li");
-        li.innerText = "resource: " + message.resourceName + ", action: " + message.action + ", body: " + message.body;
+        li.innerText = "resource: " + message.resourceName + ", action: " + message.action + ", body: " + message.body + ", extension: " + JSON.stringify(message.extensions);
         document.getElementById("messages").appendChild(li);
     }
-    document.getElementById("messageForm").onsubmit = function () {
+
+    function sendMessage() {
         var type = document.getElementById("target").value;
         var resource;
         if (type == "resource") {
@@ -213,10 +229,18 @@
         }
         message.setResourceName(resource);
         message.setBody(msg);
+        message.setAction(add_action);
         websocket.send(JSON.stringify(message));
         document.getElementById("m").value = '';
         return false;
     }
+
+    document.getElementById("messageForm").onsubmit = sendMessage;
+
+    document.getElementById("sendMessageBtn").add
+    registerEventById("sendMessageBtn", "click", function() {
+        sendMessage();
+    });
     window.addEventListener("load", init, false);
 </script>
 </html>

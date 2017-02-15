@@ -1,5 +1,8 @@
 package pusher.entity;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import pusher.util.JsonUtil;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -73,6 +76,10 @@ public class Message {
         this.action = action;
         this.extensions = extensions;
         this.body = body;
+    }
+
+    public String toJsonString() throws JsonProcessingException {
+        return JsonUtil.formatObjectToJson(this);
     }
 
     @Override
