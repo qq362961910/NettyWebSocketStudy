@@ -2,6 +2,7 @@ package com.wxsk.pusher.config;
 
 import com.alibaba.dubbo.config.*;
 import com.alibaba.dubbo.config.spring.AnnotationBean;
+import com.mongodb.Mongo;
 import com.wxsk.cas.client.interceptor.AccessRequiredAdminInteceptor;
 import com.wxsk.common.redis.StringRedisClusterUtil;
 import com.wxsk.passport.service.remote.ISourceServiceRemote;
@@ -12,6 +13,8 @@ import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketSe
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.*;
 import org.springframework.core.env.Environment;
+import org.springframework.data.mongodb.core.MongoClientFactoryBean;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisPoolConfig;
@@ -24,7 +27,7 @@ import java.util.Set;
 @ComponentScan(
         basePackages = "com.wxsk.pusher"
 ) //包扫描配置
-@PropertySource({"dubbo.properties", "netty.properties", "redis.properties"})   //配置文件配置
+@PropertySource({"dubbo.properties", "netty.properties", "redis.properties", "mongodb.properties"})   //配置文件配置
 public class AppConfig {
 
     @Autowired
@@ -34,7 +37,7 @@ public class AppConfig {
     @Bean
     public static AnnotationBean annotationBean() {
         AnnotationBean annotationBean = new AnnotationBean();
-        annotationBean.setPackage("com.wxsk.helper,com.wxsk.service.tjph");//所以含有@com.alibaba.dubbo.config.annotation.Service的注解类都应在此包中,多个包名可以使用英文逗号分隔.
+        annotationBean.setPackage("com.wxsk.helper");//所以含有@com.alibaba.dubbo.config.annotation.Service的注解类都应在此包中,多个包名可以使用英文逗号分隔.
         return annotationBean;
     }
 
@@ -142,13 +145,30 @@ public class AppConfig {
     @Scope("prototype")
     @Bean
     public HttpObjectAggregator httpObjectAggregator() {
-        return new HttpObjectAggregator(65536);
+        return new HttpObjectAggregator(1024 * 1024);
     }
 
     @Scope("prototype")
     @Bean
     public WebSocketServerCompressionHandler webSocketServerCompressionHandler() {
         return new WebSocketServerCompressionHandler();
+    }
+
+    @Bean
+    public Mongo mongo() throws Exception {
+        MongoClientFactoryBean mongoClientFactoryBean = new MongoClientFactoryBean();
+        mongoClientFactoryBean.setHost(environment.getProperty("mongodb.host"));
+        mongoClientFactoryBean.setPort(environment.getProperty("mongodb.port", Integer.class));
+        mongoClientFactoryBean.afterPropertiesSet();
+        return mongoClientFactoryBean.getObject();
+    }
+
+    @Bean
+    @Autowired
+    public MongoTemplate mongoTemplate(Mongo mongo) {
+        String database = environment.getProperty("mongodb.database");
+        MongoTemplate mongoTemplate = new MongoTemplate(mongo, database);
+        return mongoTemplate;
     }
 
 

@@ -1,6 +1,6 @@
-import pusher.client.RedisClient;
-import pusher.entity.Message;
-import pusher.enums.ExtensionType;
+import com.wxsk.pusher.client.RedisClient;
+import com.wxsk.pusher.entity.Message;
+import com.wxsk.pusher.enums.ResourceAction;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
 
@@ -16,10 +16,12 @@ public class RedisClientTest {
         RedisClient redisClient = new RedisClient(getJedisCluster(), topic);
         Message message = new Message();
         Map<String, Object> extensions = new HashMap<>();
-        extensions.put(ExtensionType.SOURCE_USERNAME.getExtensionName(), "Source_A");
-        for (int i=0; i<1000; i++) {
-            message.setResourceName("yuwen");
-            message.setAction("modify");
+//        message.setFrom("Source_A");
+//        message.setTo("yangjian,zhangpengfei");
+        for (int i=0; i<20; i++) {
+//            message.setResourceName(PredefinedResource.USER_MESSAGE.getValue());
+            message.setResourceName("shuxue");
+            message.setAction(ResourceAction.ADD.getValue());
             message.setBody(i);
             message.setExtensions(extensions);
             redisClient.sendMessage(message);

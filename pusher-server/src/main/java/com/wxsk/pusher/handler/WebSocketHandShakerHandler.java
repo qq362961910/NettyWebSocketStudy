@@ -9,6 +9,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
+import io.netty.util.AttributeKey;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +20,9 @@ import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
 public class WebSocketHandShakerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private static Logger logger = LoggerFactory.getLogger(WebSocketHandShakerHandler.class);
-    private static final String WEBSOCKET_PATH = "/";
+    private static final AttributeKey<WebSocketServerHandshaker> HANDSHAKER_ATTR_KEY =
+            AttributeKey.valueOf(WebSocketServerHandshaker.class, "HANDSHAKER");
+    public static final String WEBSOCKET_PATH = "/websocket";
 
     @Override
     protected void messageReceived(ChannelHandlerContext ctx, FullHttpRequest msg) throws Exception {
@@ -31,6 +34,7 @@ public class WebSocketHandShakerHandler extends SimpleChannelInboundHandler<Full
         } else {
             try {
                 handshaker.handshake(ctx.channel(), msg).addListener(ContextHelper.getBean(UserConnectWebsocketSuccessListener.class, msg, ctx));
+                ctx.attr(HANDSHAKER_ATTR_KEY).set(handshaker);
             } catch (Exception e) {
                 logger.error("request: " + msg.uri(), e);
             }

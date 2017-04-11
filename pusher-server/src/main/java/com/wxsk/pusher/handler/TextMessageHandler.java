@@ -1,22 +1,18 @@
 package com.wxsk.pusher.handler;
 
 import com.wxsk.common.json.JSONUtil;
-import com.wxsk.pusher.redis.MessageSubscriber;
+import com.wxsk.pusher.entity.Message;
+import com.wxsk.pusher.enums.PredefinedResource;
+import com.wxsk.pusher.enums.ResourceAction;
 import com.wxsk.pusher.util.ChannelUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import pusher.entity.Message;
-import pusher.enums.ExtensionType;
-import pusher.enums.PredefinedResource;
-import pusher.enums.ResourceAction;
-
-import java.util.Map;
 
 @Scope("prototype")
 @Component
@@ -26,9 +22,6 @@ public class TextMessageHandler extends SimpleChannelInboundHandler<TextWebSocke
     private String username;
     private Long unitId;
 
-    @Autowired
-    private MessageSubscriber messageSubscriber;
-
     @Override
     protected void messageReceived(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
         String content = msg.text();
@@ -36,17 +29,17 @@ public class TextMessageHandler extends SimpleChannelInboundHandler<TextWebSocke
         Message message = JSONUtil.getObjectByJsonStr( content, Message.class);
         String resource = message.getResourceName();
         //订阅消息
-        if(PredefinedResource.SUBSCRIBE.getName().equals(resource)) {
+        if(PredefinedResource.SUBSCRIBE.getValue().equals(resource)) {
             String action = message.getAction();
             String topic = (String)message.getBody();
             //add
-            if (ResourceAction.ADD.getName().equalsIgnoreCase(action)) {
+            if (ResourceAction.ADD.getValue().equalsIgnoreCase(action)) {
                 if (topic != null && topic.trim().length() > 0) {
                     ChannelUtil.addListenResource(topic, ctx.channel());
                 }
             }
             //remove
-            else if (ResourceAction.REMOVE.getName().equalsIgnoreCase(action)) {
+            else if (ResourceAction.REMOVE.getValue().equalsIgnoreCase(action)) {
                 if (topic != null && topic.trim().length() > 0) {
                     ChannelUtil.removeListenResource(topic, ctx.channel());
                 }
@@ -56,30 +49,31 @@ public class TextMessageHandler extends SimpleChannelInboundHandler<TextWebSocke
             }
         }
         //用户点对点消息
-        else if (PredefinedResource.USER_MESSAGE.getName().equals(resource)) {
-            Map<String,Object> extensions = message.getExtensions();
-            if (extensions != null) {
-                String username = (String)extensions.get(ExtensionType.TARGET_USERNAME.getExtensionName());
-                extensions.put(ExtensionType.SOURCE_USERNAME.getExtensionName(), this.username);
-                ChannelUtil.sendUserChannelTextMessage(username, new TextWebSocketFrame(message.toJsonString()));
+        else if (PredefinedResource.USER_MESSAGE.getValue().equals(resource)) {
+            String targetUsernames = message.getTo();
+            if (StringUtils.isNotEmpty(targetUsernames)) {
+                message.setFrom(this.username);
+                String[] usernamesToUse = targetUsernames.split(",");
+                for (String targetUsername: usernamesToUse) {
+                    message.setTo(targetUsername);
+                    ChannelUtil.sendUserChannelTextMessage(targetUsername.trim(), new TextWebSocketFrame(message.toJsonString()));
+                }
             }
         }
         //群组消息
-        else if (PredefinedResource.GROUP_MESSAGE.getName().equals(resource)) {
-            Map<String,Object> extensions = message.getExtensions();
-            Object groupId;
-            if (extensions != null) {
-                extensions.put(ExtensionType.SOURCE_USERNAME.getExtensionName(), this.username);
-                groupId = extensions.get(ExtensionType.GROUP_ID.getExtensionName());
+        else if (PredefinedResource.GROUP_MESSAGE.getValue().equals(resource)) {
+            String targetGroups = message.getTo();
+            if (StringUtils.isNotEmpty(targetGroups)) {
+                message.setFrom(this.username);
+                String[] groupsToUse = targetGroups.split(",");
+                for (String group: groupsToUse) {
+                    ChannelUtil.sendChannelGroupTextMessage(group, new TextWebSocketFrame(message.toJsonString()));
+                }
             }
-            else {
-                groupId = null;
-            }
-            ChannelUtil.sendChannelGroupTextMessage(groupId, new TextWebSocketFrame(message.toJsonString()));
         }
         //资源消息
         else {
-            ChannelUtil.sendChannelGroupTextMessage(resource, msg.duplicate().retain());
+            ChannelUtil.sendChannelGroupResourceTextMessage(resource, msg.duplicate().retain());
         }
     }
 
@@ -96,6 +90,6 @@ public class TextMessageHandler extends SimpleChannelInboundHandler<TextWebSocke
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         System.out.println("Client Connection Exception, cleaning this Connection");
         ctx.close();
-        ChannelUtil.cleanAllUserChannel(username);
     }
+
 }

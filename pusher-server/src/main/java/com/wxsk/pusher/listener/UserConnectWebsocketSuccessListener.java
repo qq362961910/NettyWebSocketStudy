@@ -1,6 +1,8 @@
 package com.wxsk.pusher.listener;
 
 import com.wxsk.passport.model.User;
+import com.wxsk.pusher.enums.PredefinedResource;
+import com.wxsk.pusher.handler.CommonWebSocketDecoder;
 import com.wxsk.pusher.handler.HtmlPageHandler;
 import com.wxsk.pusher.handler.TextMessageHandler;
 import com.wxsk.pusher.handler.WebSocketHandShakerHandler;
@@ -19,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import pusher.enums.PredefinedResource;
 
 @Scope("prototype")
 @Component
@@ -50,7 +51,7 @@ public class UserConnectWebsocketSuccessListener implements ChannelFutureListene
                 }
             }
         }
-        User user = userHelper.getUserByTicket(ticket);
+        final User user = userHelper.getUserByTicket(ticket);
         if (user == null) {
             logger.info("invalid, no username found!");
             ctx.close();
@@ -58,13 +59,20 @@ public class UserConnectWebsocketSuccessListener implements ChannelFutureListene
         else {
             ctx.pipeline().remove(HtmlPageHandler.class);
             ctx.pipeline().remove(WebSocketHandShakerHandler.class);
+            ctx.pipeline().addLast(ContextHelper.getBean(CommonWebSocketDecoder.class));
             ctx.pipeline().addLast(ContextHelper.getBean(TextMessageHandler.class, user.getUsername(), user.getUnitId()));
             logger.info("websocket 建立完成, username: " + user.getUsername());
             ChannelUtil.addUserChannel(user.getUsername(), ctx.channel());
             ChannelUtil.addUserGroupMapping(user.getUnitId(), ctx.channel());
-            ChannelUtil.addListenResource(PredefinedResource.USER_MESSAGE.getName(), ctx.channel());
-            ChannelUtil.addListenResource(PredefinedResource.GROUP_MESSAGE.getName(), ctx.channel());
-            logger.info("初始化完毕，建立用户连接映射，用户单位映射，添加默认监听资源:1." + PredefinedResource.USER_MESSAGE.getName() +", 2:" + PredefinedResource.GROUP_MESSAGE.getName());
+            ChannelUtil.addListenResource(PredefinedResource.USER_MESSAGE.getValue(), ctx.channel());
+            ChannelUtil.addListenResource(PredefinedResource.GROUP_MESSAGE.getValue(), ctx.channel());
+            future.channel().closeFuture().addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    ChannelUtil.cleanAllUserChannel(user.getUsername());
+                }
+            });
+            logger.info("初始化完毕，建立用户连接映射，用户单位映射，添加默认监听资源:1." + PredefinedResource.USER_MESSAGE.getValue() +", 2:" + PredefinedResource.GROUP_MESSAGE.getValue());
         }
     }
 
@@ -72,4 +80,6 @@ public class UserConnectWebsocketSuccessListener implements ChannelFutureListene
         this.msg = msg;
         this.ctx = ctx;
     }
+
+
 }

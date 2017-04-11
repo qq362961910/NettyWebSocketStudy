@@ -1,6 +1,10 @@
-package pusher.client;
+package com.wxsk.pusher.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.wxsk.pusher.entity.Message;
+import com.wxsk.pusher.enums.MessageStatus;
+import com.wxsk.pusher.handler.WebSocketClientHandler;
+import com.wxsk.pusher.util.JsonUtil;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -17,9 +21,6 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler;
-import pusher.entity.Message;
-import pusher.handler.WebSocketClientHandler;
-import pusher.util.JsonUtil;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -31,16 +32,16 @@ public final class WebSocketClient {
     private Channel channel;
     private String uriPath, ticket;
 
-    public void sendTextMessage(String resourceName,String action) throws JsonProcessingException {
-        sendTextMessage(resourceName, action, null);
+    public void sendTextMessage(String resourceName, String from, String to, String action) throws JsonProcessingException {
+        sendTextMessage(resourceName, from, to, action, null);
     }
 
-    public void sendTextMessage(String resourceName,String action, Object body) throws JsonProcessingException {
-        sendTextMessage(resourceName, action, null, body);
+    public void sendTextMessage(String resourceName, String from, String to, String action, Object body) throws JsonProcessingException {
+        sendTextMessage(resourceName, from, to, action, null, body);
     }
 
-    public void sendTextMessage(String resourceName,String action, Map<String, Object> extensions, Object body) throws JsonProcessingException {
-        Message message = new Message(resourceName, action, extensions, body);
+    public void sendTextMessage(String resourceName, String from, String to, String action, Map<String, Object> extensions, Object body) throws JsonProcessingException {
+        Message message = new Message(resourceName, from, to, action, extensions, body, MessageStatus.INIT.getValue());
         channel.writeAndFlush(new TextWebSocketFrame(JsonUtil.formatObjectToJson(message)));
     }
 
@@ -97,12 +98,15 @@ public final class WebSocketClient {
         }
     }
 
+
     public static void main(String[] args) throws Exception{
-        WebSocketClient client = new WebSocketClient("ws://192.168.4.200:8080/", "a2f51349a9624e1f8d4a595bc83a3166");
-        client.sendTextMessage("a", "insert");
-        client.sendTextMessage("b", "update");
-        client.sendTextMessage("c", "delete");
-        client.sendTextMessage("d", "query");
+
+        WebSocketClient client = new WebSocketClient("ws://192.168.4.200:8888/", "45d2cfaa6d1045848008b04bc617be2a");
+        client.sendTextMessage("yuwen",null, null,"insert");
+        client.sendTextMessage("yuwen", null, null, "update");
+        client.sendTextMessage("yuwen", null, null, "delete");
+        client.sendTextMessage("yuwen", null, null, "query");
         Thread.sleep(5000);
+
     }
 }

@@ -1,5 +1,5 @@
 
-package pusher.handler;
+package com.wxsk.pusher.handler;
 
 import io.netty.channel.*;
 import io.netty.handler.codec.http.FullHttpResponse;

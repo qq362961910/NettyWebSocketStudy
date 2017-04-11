@@ -9,7 +9,9 @@ import io.netty.util.concurrent.GlobalEventExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ChannelUtil {
@@ -84,7 +86,7 @@ public class ChannelUtil {
     /**
      * 发送群组消息(用户监听资源)
      * */
-    public static void sendChannelGroupTextMessage(String resourceName, TextWebSocketFrame message) {
+    public static void sendChannelGroupResourceTextMessage(String resourceName, TextWebSocketFrame message) {
         ChannelGroup channelGroup = GROUP_RESOURCE_CHANNEL_MAPPING.get(resourceName);
         if (channelGroup != null) {
             channelGroup.writeAndFlush(message);
@@ -145,6 +147,24 @@ public class ChannelUtil {
         channelGroup.add(channel);
         return channelGroup.size() == 1;
     }
+    /**
+     * 监听资源
+     * */
+    public static synchronized boolean addListenResource(String resource, String username) {
+        ChannelGroup channelGroup = GROUP_RESOURCE_CHANNEL_MAPPING.get(resource);
+        if (channelGroup == null) {
+            channelGroup = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
+            GROUP_RESOURCE_CHANNEL_MAPPING.put(resource, channelGroup);
+        }
+        ChannelId channelId = USER_CHANNEL_MAPPING.get(username);
+        if (channelId != null) {
+            Channel channel = ALL_CHANNELS.find(channelId);
+            if (channel != null) {
+                channelGroup.add(channel);
+            }
+        }
+        return channelGroup.size() == 1;
+    }
 
     /**
      * 取消监听资源
@@ -153,6 +173,23 @@ public class ChannelUtil {
         ChannelGroup channelGroup = GROUP_RESOURCE_CHANNEL_MAPPING.get(resource);
         if (channelGroup != null) {
             channelGroup.remove(channel);
+        }
+        return channelGroup.size() == 0;
+    }
+
+    /**
+     * 取消监听资源
+     * */
+    public static synchronized boolean removeListenResource(String resource, String username) {
+        ChannelGroup channelGroup = GROUP_RESOURCE_CHANNEL_MAPPING.get(resource);
+        if (channelGroup != null) {
+            ChannelId channelId = USER_CHANNEL_MAPPING.get(username);
+            if (channelId != null) {
+                Channel channel = ALL_CHANNELS.find(channelId);
+                if (channel != null) {
+                    channelGroup.remove(channel);
+                }
+            }
         }
         return channelGroup.size() == 0;
     }

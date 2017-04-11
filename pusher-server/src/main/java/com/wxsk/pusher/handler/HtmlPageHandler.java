@@ -13,6 +13,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
@@ -22,7 +24,14 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 @Component
 public class HtmlPageHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-    private static final String PATH_TAIL = ".html";
+    private static final String STATIC_FILE_DOMAIN = "/static";
+    private static final List<String> STATIC_FILE_TAILERS = new ArrayList<String>() {
+        private static final long serialVersionUID = 874293630892584281L;
+        {
+            add(".ico");
+            add(".html");
+        }
+    };
 
     @Override
     protected void messageReceived(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
@@ -31,32 +40,36 @@ public class HtmlPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
             sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));
             return;
         }
-
-        // Allow only GET methods.
-        if (req.method() != GET) {
-            sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, FORBIDDEN));
-            return;
+        boolean isStatic = false;
+        for (String tailer: STATIC_FILE_TAILERS) {
+            if (req.uri().endsWith(tailer)) {
+                isStatic = true;
+                break;
+            }
         }
-
         // Send html page
-        if (req.uri().endsWith(PATH_TAIL)) {
-            String uri = req.uri();
-            String htmlFile = uri.substring(uri.lastIndexOf("/") + 1);
-            InputStream inputStream = HtmlPageHandler.class.getClassLoader().getResourceAsStream(htmlFile);
+        if (isStatic || req.uri().startsWith(STATIC_FILE_DOMAIN)) {
+            // Allow only GET methods.
+            if (req.method() != GET) {
+                sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, FORBIDDEN));
+                return;
+            }
+            InputStream inputStream = HtmlPageHandler.class.getClassLoader().getResourceAsStream(req.uri().substring(1));
             //404
             if (inputStream == null) {
                 sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, NOT_FOUND));
             }
-            byte[] fileContent = new byte[inputStream.available()];
-            inputStream.read(fileContent);
-            inputStream.close();
-            ByteBuf fileBuf = Unpooled.copiedBuffer(fileContent);
-            FullHttpResponse res = new DefaultFullHttpResponse(HTTP_1_1, OK, fileBuf);
+            else {
+                byte[] fileContent = new byte[inputStream.available()];
+                inputStream.read(fileContent);
+                inputStream.close();
+                ByteBuf fileBuf = Unpooled.copiedBuffer(fileContent);
+                FullHttpResponse res = new DefaultFullHttpResponse(HTTP_1_1, OK, fileBuf);
 
-            res.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html; charset=UTF-8");
-            HttpHeaderUtil.setContentLength(res, fileBuf.readableBytes());
-
-            sendHttpResponse(ctx, req, res);
+                res.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html; charset=UTF-8");
+                HttpHeaderUtil.setContentLength(res, fileBuf.readableBytes());
+                sendHttpResponse(ctx, req, res);
+            }
             ReferenceCountUtil.release(req);
         } else {
             ctx.fireChannelRead(req);
@@ -82,4 +95,5 @@ public class HtmlPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
     public HtmlPageHandler() {
         super(false);
     }
+
 }

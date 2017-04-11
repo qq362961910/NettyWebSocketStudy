@@ -11,8 +11,6 @@ import io.netty.handler.logging.LoggingHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -36,7 +34,7 @@ public final class WebSocketServer implements Runnable{
                     .childHandler(webSocketServerInitializer);
 
             Channel ch = b.bind(port).sync().channel();
-            logger.info("Open your web browser and navigate to http://127.0.0.1:" + port + '/');
+            logger.info("Open your web browser and navigate to http://localhost:" + port + "/static/client.html");
             ch.closeFuture().sync();
         }catch (Exception e) {
             logger.error(e.toString());
